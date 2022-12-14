@@ -1,0 +1,66 @@
+---
+ - name: Build test - Install fail2ban
+   hosts: pm1  
+   become_method: sudo
+   gather_facts: false
+   tasks: 
+#Install fail2ban
+     - name: Install fail2ban
+       dnf: 
+         name: fail2ban
+         state: present
+       when: ansible_distribution == 'AlmaLinux' and ansible_distribution_version == '8.7'  
+       ignore_errors: true
+
+#Install fail2ban
+     - name: Install fail2ban
+       apt: 
+         name: fail2ban
+         state: present
+       when: ansible_distribution == 'Ubuntu' and ansible_distribution_version == '22.04'  
+       ignore_errors: true
+
+#Start and enable fail2ban.
+     - name: Start and enable fail2ban
+       ignore_errors: true
+       ansible.builtin.service: 
+         name: fail2ban
+         state: started
+         enabled: true
+
+     - name: Copy file with /etc/fail2ban/jail.conf 
+       shell: sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+       ignore_errors: true
+
+#Configure ip ignore list.
+     - name: Configure ip ignore list
+       lineinfile:
+         path: /etc/fail2ban/jail.local
+         state: present
+         line: 'ignoreip = 127.0.0.1/8 192.168.0.8 192.168.0.20 192.168.0.48'
+
+#Restart fail2ban for configs to take effect.
+     - name: Restart fail2ban for configs to take effect.
+       ignore_errors: true
+       ansible.builtin.service: 
+         name: fail2ban
+         state: restarted
+
+#Create  /etc/fail2ban/jail.d/sshd.local     
+     - name: Touch /etc/fail2ban/jail.d/sshd.local.
+       ansible.builtin.file:
+         path: /etc/fail2ban/jail.d/sshd.local
+         state: touch
+
+#Configure /etc/fail2ban/jail.d/sshd.local.
+     - name: Configure /etc/fail2ban/jail.d/sshd.local
+       lineinfile:
+         path: /etc/fail2ban/jail.d/sshd.local
+         state: present
+         line: '[sshd]
+                enabled = true
+                port = ssh
+                action = iptables-multiport
+                logpath = /var/log/secure
+                maxretry = 3
+                bantime = 600'
